@@ -24,7 +24,7 @@ Jika Anda belum memiliki salinan repo, jalankan:
 
 ```bash
 git clone https://github.com/Ballon14/kriptografi.git
-cd uas
+cd kriptografi
 ```
 
 ## Cara Pull Update Terbaru

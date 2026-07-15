@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 APP_NAME = "Secure File Vault"
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 
 RSA_KEY_SIZE = 2048

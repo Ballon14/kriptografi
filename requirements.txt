@@ -1,0 +1,5 @@
+ttkbootstrap==1.20.4
+pycryptodome==3.23.0
+pyinstaller==6.21.0
+pytest==8.4.1
+ruff==0.12.0

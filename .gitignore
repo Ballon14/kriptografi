@@ -1,0 +1,25 @@
+__pycache__/
+
+*.pyc
+
+*.log
+
+.env
+
+.vscode/
+
+.idea/
+
+
+# generated files
+
+encrypted/*
+
+decrypted/*
+
+logs/*
+
+
+# private key
+
+keys/private_key.pem

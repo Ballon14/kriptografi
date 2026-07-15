@@ -1,21 +1,44 @@
 """
-Main GUI interface.
+Secure File Vault GUI.
+
+Desktop interface using ttkbootstrap.
 """
 
 
-import ttkbootstrap as ttk
+import threading
 
-from ttkbootstrap.constants import *
+import time
 
-from tkinter import filedialog
 
 from pathlib import Path
 
 
-from config import (
-    APP_NAME,
-    APP_VERSION
+import ttkbootstrap as ttk
+
+
+from ttkbootstrap.constants import *
+
+
+from tkinter import (
+    filedialog,
+    messagebox
 )
+
+
+
+from encrypt import FileEncryptor
+
+from decrypt import FileDecryptor
+
+from rsa_key import RSAKeyManager
+
+
+from about import APP_INFORMATION
+
+
+
+from config import APP_NAME, APP_VERSION
+
 
 
 
@@ -25,13 +48,25 @@ class SecureFileVaultGUI:
     def __init__(self):
 
         self.window = ttk.Window(
+
             title=APP_NAME,
+
             themename="darkly",
-            size=(900,600)
+
+            size=(950,650)
+
         )
 
 
         self.selected_file = None
+
+
+        self.encryptor = FileEncryptor()
+
+        self.decryptor = FileDecryptor()
+
+        self.key_manager = RSAKeyManager()
+
 
 
         self.create_interface()
@@ -44,26 +79,28 @@ class SecureFileVaultGUI:
 
         self.create_dashboard()
 
-        self.create_status()
-
 
 
     def create_menu(self):
 
-        menu_bar = ttk.Menu(
+
+        menu = ttk.Menu(
             self.window
         )
 
 
         file_menu = ttk.Menu(
-            menu_bar,
+            menu,
             tearoff=False
         )
 
 
         file_menu.add_command(
+
             label="Browse File",
+
             command=self.browse_file
+
         )
 
 
@@ -71,133 +108,172 @@ class SecureFileVaultGUI:
 
 
         file_menu.add_command(
+
             label="Exit",
+
             command=self.window.destroy
+
         )
 
 
-        menu_bar.add_cascade(
+
+        menu.add_cascade(
+
             label="File",
+
             menu=file_menu
+
         )
+
 
 
         security_menu = ttk.Menu(
-            menu_bar,
+
+            menu,
+
             tearoff=False
+
         )
 
 
         security_menu.add_command(
-            label="Generate RSA Key"
+
+            label="Generate RSA Key",
+
+            command=self.generate_key
+
         )
 
 
-        security_menu.add_command(
-            label="Load Key"
-        )
+        menu.add_cascade(
 
-
-        menu_bar.add_cascade(
             label="Security",
+
             menu=security_menu
+
         )
 
-
-        tools_menu = ttk.Menu(
-            menu_bar,
-            tearoff=False
-        )
-
-
-        menu_bar.add_cascade(
-            label="Tools",
-            menu=tools_menu
-        )
 
 
         help_menu = ttk.Menu(
-            menu_bar,
+
+            menu,
+
             tearoff=False
+
         )
 
 
         help_menu.add_command(
-            label="About"
+
+            label="About",
+
+            command=self.show_about
+
         )
 
 
-        menu_bar.add_cascade(
+
+        menu.add_cascade(
+
             label="Help",
+
             menu=help_menu
+
         )
 
 
         self.window.config(
-            menu=menu_bar
+
+            menu=menu
+
         )
+
 
 
 
     def create_dashboard(self):
 
 
-        container = ttk.Frame(
+        frame = ttk.Frame(
+
             self.window,
+
             padding=30
+
         )
 
 
-        container.pack(
-            fill=BOTH,
-            expand=True
+        frame.pack(
+
+            expand=True,
+
+            fill=BOTH
+
         )
 
 
-        title = ttk.Label(
-            container,
+
+        ttk.Label(
+
+            frame,
+
             text=APP_NAME,
+
             font=(
+
                 "Segoe UI",
-                24,
+
+                26,
+
                 "bold"
+
             )
-        )
 
+        ).pack(
 
-        title.pack(
-            pady=20
+            pady=15
+
         )
 
 
 
         self.file_label = ttk.Label(
-            container,
-            text="File : -"
+
+            frame,
+
+            text="File: -"
+
         )
 
 
-        self.file_label.pack(
-            pady=10
-        )
+        self.file_label.pack()
 
 
 
         self.progress = ttk.Progressbar(
-            container,
-            length=500,
+
+            frame,
+
+            length=600,
+
             mode="determinate"
+
         )
 
 
         self.progress.pack(
+
             pady=20
+
         )
 
 
 
         button_frame = ttk.Frame(
-            container
+
+            frame
+
         )
 
 
@@ -206,62 +282,342 @@ class SecureFileVaultGUI:
 
 
         ttk.Button(
+
             button_frame,
+
             text="Encrypt",
-            bootstyle="success"
+
+            bootstyle="success",
+
+            command=self.encrypt_file
+
         ).grid(
+
             row=0,
+
             column=0,
-            padx=10
+
+            padx=15
+
         )
+
 
 
         ttk.Button(
+
             button_frame,
+
             text="Decrypt",
-            bootstyle="danger"
+
+            bootstyle="danger",
+
+            command=self.decrypt_file
+
         ).grid(
+
             row=0,
+
             column=1,
-            padx=10
+
+            padx=15
+
         )
 
 
-
-    def create_status(self):
 
         self.status = ttk.Label(
-            self.window,
-            text="Ready",
-            anchor="center"
+
+            frame,
+
+            text="Ready"
+
         )
 
+
         self.status.pack(
-            fill=X
+
+            pady=20
+
         )
+
 
 
 
     def browse_file(self):
 
-        file_path = filedialog.askopenfilename()
+
+        selected = filedialog.askopenfilename()
 
 
-        if file_path:
+
+        if selected:
+
 
             self.selected_file = Path(
-                file_path
+
+                selected
+
             )
 
 
             self.file_label.config(
-                text=f"File : {self.selected_file.name}"
+
+                text=f"File: {self.selected_file.name}"
+
             )
 
 
-            self.status.config(
-                text="File selected"
+
+    def generate_key(self):
+
+
+        result = (
+
+            self.key_manager.generate_key_pair()
+
+        )
+
+
+        if result:
+
+
+            messagebox.showinfo(
+
+                "Success",
+
+                "RSA key generated"
+
             )
+
+
+
+
+    def encrypt_file(self):
+
+
+        if not self.selected_file:
+
+
+            messagebox.showwarning(
+
+                "Warning",
+
+                "Select file first"
+
+            )
+
+            return
+
+
+
+        thread = threading.Thread(
+
+            target=self.run_encrypt
+
+        )
+
+
+        thread.start()
+
+
+
+
+    def run_encrypt(self):
+
+
+        try:
+
+
+            self.update_status(
+
+                "Encrypting..."
+
+            )
+
+
+            self.progress.start()
+
+
+
+            output = (
+
+                self.encryptor.encrypt_file(
+
+                    self.selected_file
+
+                )
+
+            )
+
+
+
+            self.progress.stop()
+
+
+
+            self.update_status(
+
+                "Encryption complete"
+
+            )
+
+
+
+            messagebox.showinfo(
+
+                "Success",
+
+                str(output)
+
+            )
+
+
+        except Exception as error:
+
+
+            messagebox.showerror(
+
+                "Error",
+
+                str(error)
+
+            )
+
+
+
+
+    def decrypt_file(self):
+
+
+        if not self.selected_file:
+
+
+            messagebox.showwarning(
+
+                "Warning",
+
+                "Select encrypted file"
+
+            )
+
+
+            return
+
+
+
+        thread = threading.Thread(
+
+            target=self.run_decrypt
+
+        )
+
+
+        thread.start()
+
+
+
+
+    def run_decrypt(self):
+
+
+        try:
+
+
+            self.update_status(
+
+                "Decrypting..."
+
+            )
+
+
+            self.progress.start()
+
+
+
+            output = (
+
+                self.decryptor.decrypt_file(
+
+                    self.selected_file
+
+                )
+
+            )
+
+
+            self.progress.stop()
+
+
+
+            self.update_status(
+
+                "Decryption complete"
+
+            )
+
+
+            messagebox.showinfo(
+
+                "Success",
+
+                str(output)
+
+            )
+
+
+        except Exception as error:
+
+
+            messagebox.showerror(
+
+                "Error",
+
+                str(error)
+
+            )
+
+
+
+
+    def update_status(
+
+        self,
+
+        message: str
+
+    ):
+
+
+        self.status.config(
+
+            text=message
+
+        )
+
+
+
+
+    def show_about(self):
+
+
+        messagebox.showinfo(
+
+            "About",
+
+            (
+                f"{APP_INFORMATION['name']}\n\n"
+
+                f"Version: {APP_VERSION}\n"
+
+                f"Algorithm: "
+                f"{APP_INFORMATION['algorithm']}\n\n"
+
+                f"{APP_INFORMATION['description']}"
+
+            )
+
+        )
+
 
 
 

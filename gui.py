@@ -22,7 +22,7 @@ class SecureFileVaultGUI:
     def __init__(self):
         self.window = ttk.Window(
             title=APP_NAME,
-            themename="darkly",
+            themename="flatly",
             size=(1000, 700),
         )
         self.window.minsize(900, 650)
@@ -86,6 +86,7 @@ class SecureFileVaultGUI:
             text="Selected file: none",
             font=("Segoe UI", 11, "bold"),
             wraplength=800,
+            bootstyle="primary",
         )
         self.file_label.pack(anchor=W)
 
@@ -116,13 +117,15 @@ class SecureFileVaultGUI:
         self.decrypt_button = ttk.Button(action_row, text="Decrypt", bootstyle="danger", command=self.decrypt_file)
         self.decrypt_button.pack(side=LEFT, padx=(10, 0))
 
+        ttk.Separator(card_content, orient='horizontal').pack(fill=X, pady=(18, 0))
+
         status_frame = ttk.LabelFrame(main_frame, text="Status")
         status_frame.pack(fill=X, pady=(16, 0))
 
         status_content = ttk.Frame(status_frame, padding=15)
         status_content.pack(fill=BOTH, expand=True)
 
-        self.status = ttk.Label(status_content, text="Ready", font=("Segoe UI", 10, "bold"))
+        self.status = ttk.Label(status_content, text="Ready", font=("Segoe UI", 10, "bold"), bootstyle="success")
         self.status.pack(anchor=W)
 
         self.helper_text = ttk.Label(
@@ -131,6 +134,14 @@ class SecureFileVaultGUI:
             wraplength=800,
         )
         self.helper_text.pack(anchor=W, pady=(6, 0))
+
+        self.result_text = ttk.Label(
+            status_content,
+            text="No results yet.",
+            wraplength=800,
+            bootstyle="secondary",
+        )
+        self.result_text.pack(anchor=W, pady=(8, 0))
 
         ttk.Label(
             main_frame,
@@ -161,6 +172,7 @@ class SecureFileVaultGUI:
             result = self.key_manager.generate_key_pair()
             if result:
                 self.window.after(0, lambda: self.update_status("RSA key generated", "The new key pair is available in the keys folder."))
+                self.window.after(0, lambda: self.show_result("RSA key pair generated successfully."))
                 self.window.after(0, lambda: messagebox.showinfo("Success", "RSA key generated"))
             else:
                 self.window.after(0, lambda: messagebox.showerror("Error", "Failed to generate RSA key"))
@@ -186,6 +198,7 @@ class SecureFileVaultGUI:
         try:
             output = self.encryptor.encrypt_file(self.selected_file)
             self.window.after(0, lambda: self.update_status("Encryption complete", f"Saved to {output}"))
+            self.window.after(0, lambda: self.show_result(self.format_result_message("Encryption", self.selected_file, output)))
             self.window.after(0, lambda: messagebox.showinfo("Success", str(output)))
         except Exception as error:
             self.window.after(0, lambda: messagebox.showerror("Error", str(error)))
@@ -209,11 +222,31 @@ class SecureFileVaultGUI:
         try:
             output = self.decryptor.decrypt_file(self.selected_file)
             self.window.after(0, lambda: self.update_status("Decryption complete", f"Restored to {output}"))
+            self.window.after(0, lambda: self.show_result(self.format_result_message("Decryption", self.selected_file, output)))
             self.window.after(0, lambda: messagebox.showinfo("Success", str(output)))
         except Exception as error:
             self.window.after(0, lambda: messagebox.showerror("Error", str(error)))
         finally:
             self.window.after(0, lambda: self.set_busy(False))
+
+    def format_result_message(self, operation: str, source_file: Path | None, output_file: Path | None) -> str:
+        source_name = source_file.name if source_file is not None else "unknown"
+        output_name = output_file.name if output_file is not None else "unknown"
+
+        if operation.lower().startswith("en"):
+            return (
+                f"{operation} complete\n"
+                f"Source: {source_name}\n"
+                f"Output: {output_name}\n"
+                f"Status: encrypted"
+            )
+
+        return (
+            f"{operation} complete\n"
+            f"Source: {source_name}\n"
+            f"Output: {output_name}\n"
+            f"Status: restored"
+        )
 
     def update_status(self, message: str, detail: str | None = None):
         self.status.config(text=message)
@@ -221,6 +254,9 @@ class SecureFileVaultGUI:
             detail = "Select a file and pick an action to begin."
         self.helper_text.config(text=detail)
         self.file_label.config(text=f"Selected file: {self.selected_file.name if self.selected_file else 'none'}")
+
+    def show_result(self, text: str):
+        self.result_text.config(text=text)
 
     def set_busy(self, busy: bool):
         if busy:
